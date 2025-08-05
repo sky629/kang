@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, TypeVar
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.sql.functions import func
 
 from app.common.logging import logger
 from app.common.storage.postgres import postgres_storage
@@ -68,8 +69,6 @@ class BaseRepository:
     @classmethod
     async def count(cls, filters: Optional[Dict[str, Any]] = None) -> int:
         """Count entities using read database."""
-        from sqlalchemy import func
-
         async with postgres_storage.get_domain_read_session(
             domain=cls.domain
         ) as session:
@@ -87,8 +86,6 @@ class BaseRepository:
     @classmethod
     async def exists(cls, entity_id: Any) -> bool:
         """Check if entity exists using read database."""
-        from sqlalchemy import func
-
         async with postgres_storage.get_domain_read_session(
             domain=cls.domain
         ) as session:
