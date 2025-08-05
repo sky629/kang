@@ -90,3 +90,5 @@ dist/
 # Development tools config
 .mypy_cache/
 .pre-commit-config.yaml
+
+.uv_cache
