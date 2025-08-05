@@ -1,4 +1,4 @@
-# Kang Authentication Server
+# Kang Server
 
 ## 개요
 
