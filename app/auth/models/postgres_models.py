@@ -56,6 +56,12 @@ class User(Base):
     social_accounts: Mapped[List["SocialAccount"]] = relationship(
         "SocialAccount", back_populates="user", cascade="all, delete-orphan"
     )
+    documents: Mapped[List["Document"]] = relationship(
+        "Document", back_populates="user", cascade="all, delete-orphan"
+    )
+    rag_queries: Mapped[List["RAGQuery"]] = relationship(
+        "RAGQuery", back_populates="user", cascade="all, delete-orphan"
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
