@@ -14,6 +14,7 @@ RUN pip install uv
 
 # Set uv cache directory inside the app directory
 ENV UV_CACHE_DIR=/app/.uv_cache
+ENV TRANSFORMERS_CACHE=/app/.cache/huggingface
 
 # Copy dependency files
 COPY pyproject.toml uv.lock start-dev.sh ./

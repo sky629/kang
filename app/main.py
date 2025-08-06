@@ -1,12 +1,13 @@
 from logging import config as logging_config
 
-from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app import __version__
 from app.auth.routes.auth import auth_public_router_v1
+from app.rag.routes.rag import router as rag_router
 from app.common.exception import APIException
 from app.common.logging import (
     CONSOLE_LOGGING_CONFIG,
@@ -36,6 +37,10 @@ router = APIRouter()
 async def pong():
     return {"ping": "pong!"}
 
+# 임시
+@router.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=200)
 
 def get_custom_openapi(f_app: FastAPI):
     from fastapi.openapi.utils import get_openapi
@@ -112,6 +117,7 @@ def create_app(logging_configuration: dict):
 
     _app.include_router(router)
     _app.include_router(auth_public_router_v1)
+    _app.include_router(rag_router)
 
     # Startup and shutdown events
     @_app.on_event("startup")

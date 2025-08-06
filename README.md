@@ -152,7 +152,6 @@ uv run pytest
 
 ### 인증 API (/api/v1/auth)
 
-- `GET /health/` - Auth 서비스 상태 확인
 - `GET /google/login/` - Google OAuth 로그인 URL 생성
 - `POST /google/callback/` - Google OAuth 콜백 처리
 - `POST /refresh/` - JWT 토큰 갱신
@@ -278,7 +277,7 @@ uv run pytest tests/ -v --tb=short
 
 ### Clean Architecture 적용
 - **Domain Layer**: Models (User, SocialAccount), Enums (UserLevel)
-- **Application Layer**: Services (OAuth, Token, User), Use Cases  
+- **Application Layer**: Services (OAuth, Token, User)
 - **Infrastructure Layer**: Repositories (User, SocialAccount, Token), Storage (PostgreSQL, Redis)
 - **Presentation Layer**: Routes (auth_routes), Representations (Request/Response models)
 
@@ -361,7 +360,8 @@ POSTGRES_PORT=5432
 - [ ] 사용자 권한 관리 시스템 (RBAC)
 - [ ] API 키 기반 인증
 - [ ] 관리자 패널 구현
-- [ ] 이중 인증 (2FA) 지원
+- [ ] 자주 조회 되는 데이터에 대한 캐시 처리
+- [ ] RAG 시스템 추가
 
 ## 라이선스
 
