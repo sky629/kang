@@ -20,7 +20,9 @@ FastAPI와 PostgreSQL을 사용한 Google OAuth 기반 인증 시스템입니다
 ## 기술 스택
 
 - **Backend**: FastAPI + Python 3.11
-- **Database**: PostgreSQL 15 + SQLAlchemy 2.0 (Async)
+- **Database**: PostgreSQL 15 + SQLAlchemy 2.0 (Async) + pgvector 
+- **Vector DB**: pgvector (PostgreSQL 확장)
+- **RAG/LLM**: Sentence Transformers + Ollama (Local LLM)
 - **Cache**: Redis 7
 - **Authentication**: Google OAuth 2.0 + JWT
 - **Package Manager**: uv
@@ -40,6 +42,11 @@ app/
 │   ├── services/          # 비즈니스 로직 (OAuth, Token, User)
 │   ├── routes/            # API 엔드포인트
 │   └── representations/   # Pydantic 요청/응답 모델
+├── rag/                   # RAG 시스템 도메인 ✅
+│   ├── models/            # 문서, 임베딩, 쿼리 모델
+│   ├── services/          # RAG, 벡터검색, 임베딩, LLM 서비스
+│   ├── routes/            # RAG API 엔드포인트
+│   └── representations/   # Pydantic RAG 요청/응답 모델
 ├── common/                # 공통 컴포넌트
 │   ├── storage/           # PostgreSQL & Redis 연결 관리
 │   ├── middleware/        # 미들웨어 (Rate Limiting, Exception, Access Log)
@@ -359,23 +366,24 @@ POSTGRES_PORT=5432
 - [x] 사용자 관리 (프로필 수정, 계정 삭제)
 - [x] Rate Limiting 및 보안 미들웨어
 
-### RAG System ✅ 최근 완료 (2025.01)
+### RAG System ✅ 완료 (구현률 95%)
 - [x] **벡터 검색 기반 RAG 시스템** - PostgreSQL + pgvector
-- [x] **한국어 최적화 임베딩** - ko-sroberta-multitask 모델
+- [x] **한국어 최적화 임베딩** - ko-sroberta-multitask 모델  
 - [x] **지능적 폴백 메커니즘** - DB 비어있을 때 일반 지식 활용
 - [x] **동적 검색 전략** - 임계값 자동 조정 (0.7 → 0.5 → 0.3)
-- [x] **성능 모니터링** - 검색/생성 시간 추적
-- [x] **신뢰도 평가** - 답변 품질 점수화 (0.0-1.0)
-- [x] **상태 모니터링 API** - 시스템 헬스체크 및 DB 상태
+- [x] **Pydantic 모델 기반 API** - 타입 안전성 및 자동 검증
+- [x] **성능 모니터링** - 검색/생성 시간 밀리초 단위 추적
+- [x] **신뢰도 평가** - 답변 품질 점수화 (벡터검색 0.5-1.0, 폴백 0.2-0.3)
+- [x] **실시간 상태 모니터링** - DB 상태, 문서 개수, 임베딩 현황
 
 ### API 엔드포인트 현황
 ```bash
-# RAG 시스템
-GET  /rag/query/          # 벡터 검색 기반 질의응답
+# RAG 시스템 (Pydantic 모델 기반)
+POST /rag/query/          # 벡터 검색 기반 질의응답 (타입 안전한 Request Body)
 POST /rag/answer/         # 직접 컨텍스트 기반 답변
-GET  /rag/health/         # 시스템 상태 확인
+GET  /rag/health/         # 시스템 상태 확인 
 GET  /rag/database/status/ # DB 상태 및 권장사항
-GET  /rag/sample/         # 사용법 예시
+GET  /rag/sample/         # 사용법 예시 및 API 가이드
 
 # 인증 시스템  
 GET  /api/v1/auth/google/login/    # Google OAuth 로그인
