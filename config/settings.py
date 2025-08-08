@@ -39,7 +39,7 @@ class Settings(BaseSettings):
 
     # CORS
     allowed_origins: str = "http://localhost:3000,http://localhost:8080"
-    
+
     # AI Model Configuration
     # GPT-OSS Configuration (Primary)
     gpt_oss_base_url: str = "http://localhost:11434"
@@ -48,17 +48,17 @@ class Settings(BaseSettings):
     gpt_oss_temperature: float = 0.1
     gpt_oss_reasoning_level: str = "medium"
     gpt_oss_timeout: int = 120
-    
+
     # Embedding settings
     embedding_model: str = "jhgan/ko-sroberta-multitask"
     embedding_dimension: int = 768
     chunk_size: int = 1000
     chunk_overlap: int = 200
-    
+
     # Vector search settings
     similarity_threshold: float = 0.7
     max_retrieved_docs: int = 5
-    
+
     # File upload settings
     max_file_size_mb: int = 10
     allowed_file_types: str = "pdf,docx,txt"
@@ -100,12 +100,12 @@ class Settings(BaseSettings):
     @property
     def user_postgres_write_url(self) -> str:
         return self.postgres_write_url
-    
+
     # File upload helpers
     @property
     def allowed_file_types_list(self) -> List[str]:
         return [ext.strip() for ext in self.allowed_file_types.split(",")]
-    
+
     @property
     def max_file_size_bytes(self) -> int:
         return self.max_file_size_mb * 1024 * 1024
