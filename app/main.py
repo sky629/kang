@@ -7,7 +7,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app import __version__
 from app.auth.routes.auth import auth_public_router_v1
-from app.rag.routes.rag import router as rag_router
 from app.common.exception import APIException
 from app.common.logging import (
     CONSOLE_LOGGING_CONFIG,
@@ -28,6 +27,7 @@ from app.common.middleware.rate_limiting import (
 )
 from app.common.storage.postgres import postgres_storage
 from app.common.storage.redis import pools
+from app.rag.routes.rag import router as rag_router
 from config.settings import settings
 
 router = APIRouter()
@@ -37,10 +37,12 @@ router = APIRouter()
 async def pong():
     return {"ping": "pong!"}
 
+
 # 임시
 @router.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     return Response(status_code=200)
+
 
 def get_custom_openapi(f_app: FastAPI):
     from fastapi.openapi.utils import get_openapi

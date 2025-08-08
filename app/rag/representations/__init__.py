@@ -3,8 +3,8 @@
 from .request import (
     DocumentCreateRequest,
     DocumentUpdateRequest,
-    RAGQueryRequest,
     RAGFeedbackRequest,
+    RAGQueryRequest,
 )
 from .response import (
     DocumentChunk,
@@ -19,7 +19,7 @@ from .response import (
 __all__ = [
     # Request models
     "DocumentCreateRequest",
-    "DocumentUpdateRequest", 
+    "DocumentUpdateRequest",
     "RAGQueryRequest",
     "RAGFeedbackRequest",
     # Response models
