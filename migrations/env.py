@@ -11,6 +11,12 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 # Import all models to ensure they are loaded
 from app.auth.models.postgres_models import SocialAccount, User  # noqa
 from app.common.storage.postgres import Base
+from app.rag.models.postgres_models import (  # noqa
+    Document,
+    DocumentChunk,
+    Embedding,
+    RAGQuery,
+)
 from config.settings import settings
 
 # this is the Alembic Config object, which provides
