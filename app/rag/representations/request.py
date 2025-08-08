@@ -50,6 +50,18 @@ class RAGFeedbackRequest(BaseModel):
     feedback: Optional[str] = Field(None, max_length=500, description="사용자 피드백")
 
 
+class RAGQueryParametersRequest(BaseModel):
+    """RAG 질의 파라미터 요청 스키마."""
+
+    question: str = Field(..., min_length=1, max_length=1000, description="사용자 질문")
+    user_id: str = Field("default", description="사용자 ID")
+    max_documents: int = Field(5, ge=1, le=10, description="최대 검색 문서 수")
+    similarity_threshold: float = Field(
+        0.7, ge=0.0, le=1.0, description="유사도 임계값"
+    )
+    temperature: float = Field(0.1, ge=0.0, le=1.0, description="답변 창의성")
+
+
 class RAGRequest(BaseModel):
     """RAG 요청 스키마."""
 
