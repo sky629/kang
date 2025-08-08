@@ -146,3 +146,16 @@ class RAGQueryResponse(BaseModel):
     generation_time_ms: Optional[int] = Field(
         None, description="답변 생성 소요 시간 (ms)"
     )
+
+    # 폴백 모드 관련 필드들
+    fallback_mode: Optional[bool] = Field(
+        False, description="폴백 모드 여부 (벡터 검색 실패 시 일반 지식 사용)"
+    )
+    retry_attempted: Optional[bool] = Field(
+        False, description="낮은 임계값으로 재검색 시도 여부"
+    )
+    retry_threshold: Optional[float] = Field(
+        None, description="재검색 시 사용된 임계값"
+    )
+    db_status: Optional[dict] = Field(None, description="데이터베이스 상태 정보")
+    error: Optional[bool] = Field(False, description="오류 발생 여부")

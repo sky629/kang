@@ -2,9 +2,8 @@
 
 import logging
 import time
-from typing import List, Optional
+from typing import List
 
-from app.rag.models import RAGQueryModel
 from app.rag.services.embedding_service import EmbeddingService
 from app.rag.services.gpt_oss_service import GPTOSSService
 from app.rag.services.vector_search_service import VectorSearchService
@@ -77,6 +76,37 @@ class RAGService:
             # 현재는 GPT-OSS만 사용하므로 원래 예외 발생
             raise e
 
+    async def generate_fallback_answer(
+        self, question: str, user_id: str, **kwargs
+    ) -> str:
+        """벡터 검색 실패 시 LLM 내재 지식만으로 답변을 생성합니다."""
+
+        fallback_context = [
+            "현재 관련 문서를 찾을 수 없어 일반적인 지식을 바탕으로 답변드리겠습니다.",
+            "이 답변은 특정 문서에 기반하지 않은 일반적인 정보입니다.",
+        ]
+
+        try:
+            logger.info(f"폴백 모드 답변 생성 - 사용자: {user_id}")
+
+            answer = await self.gpt_oss_service.generate_rag_answer(
+                question=question, context_documents=fallback_context, **kwargs
+            )
+
+            # 폴백 모드임을 명시하는 메시지 추가
+            fallback_answer = f"""**※ 이 답변은 업로드된 문서가 없거나 관련 문서를 찾을 수 없어서 일반적인 지식을 바탕으로 생성되었습니다.**
+
+{answer}
+
+**더 정확한 답변을 위해서는 관련 문서를 업로드해 주세요.**"""
+
+            logger.info("폴백 모드 답변 생성 완료")
+            return fallback_answer
+
+        except Exception as e:
+            logger.error(f"폴백 답변 생성 중 오류: {str(e)}")
+            raise Exception(f"폴백 답변 생성에 실패했습니다: {str(e)}")
+
     async def process_rag_query(
         self,
         question: str,
@@ -120,14 +150,99 @@ class RAGService:
             search_time_ms = int((search_end_time - search_start_time) * 1000)
 
             if not search_results:
-                logger.warning("검색 결과가 없습니다")
+                logger.warning("벡터 검색 결과가 없습니다")
+
+                # 데이터베이스 상태 확인
+                db_status = await self.vector_search_service.check_database_status()
+
+                if not db_status["is_ready"]:
+                    # DB가 비어있는 경우: LLM 내재 지식으로 폴백
+                    logger.info("DB가 비어있어 폴백 모드로 답변 생성")
+                    generation_start_time = time.time()
+
+                    try:
+                        fallback_answer = await self.generate_fallback_answer(
+                            question=question, user_id=user_id, **kwargs
+                        )
+
+                        generation_end_time = time.time()
+                        generation_time_ms = int(
+                            (generation_end_time - generation_start_time) * 1000
+                        )
+
+                        return {
+                            "question": question,
+                            "answer": fallback_answer,
+                            "sources": [],
+                            "confidence_score": 0.3,  # 낮은 신뢰도
+                            "search_time_ms": search_time_ms,
+                            "generation_time_ms": generation_time_ms,
+                            "fallback_mode": True,
+                            "db_status": db_status,
+                        }
+
+                    except Exception as e:
+                        logger.error(f"폴백 답변 생성 실패: {str(e)}")
+                        # 폴백도 실패하면 기본 메시지
+                        pass
+
+                else:
+                    # 문서는 있지만 관련 없는 경우: 임계값 낮춰서 재검색
+                    logger.info("관련 문서 없음 - 임계값을 낮춰서 재검색")
+                    lower_threshold = max(similarity_threshold - 0.2, 0.3)
+
+                    retry_results = (
+                        await self.vector_search_service.search_similar_documents(
+                            query_embedding=query_embedding,
+                            similarity_threshold=lower_threshold,
+                            max_docs=max_documents,
+                            user_id=user_id,
+                        )
+                    )
+
+                    if retry_results:
+                        logger.info(
+                            f"재검색 성공: {len(retry_results)}개 문서 발견 (낮은 임계값: {lower_threshold})"
+                        )
+                        search_results = retry_results
+                    else:
+                        logger.info("재검색도 실패 - 폴백 모드")
+                        generation_start_time = time.time()
+
+                        try:
+                            fallback_answer = await self.generate_fallback_answer(
+                                question=question, user_id=user_id, **kwargs
+                            )
+
+                            generation_end_time = time.time()
+                            generation_time_ms = int(
+                                (generation_end_time - generation_start_time) * 1000
+                            )
+
+                            return {
+                                "question": question,
+                                "answer": fallback_answer,
+                                "sources": [],
+                                "confidence_score": 0.2,
+                                "search_time_ms": search_time_ms,
+                                "generation_time_ms": generation_time_ms,
+                                "fallback_mode": True,
+                                "retry_attempted": True,
+                                "retry_threshold": lower_threshold,
+                            }
+
+                        except Exception as e:
+                            logger.error(f"폴백 답변 생성 실패: {str(e)}")
+
+                # 모든 방법이 실패한 경우 기본 메시지
                 return {
                     "question": question,
-                    "answer": "죄송합니다. 질문과 관련된 문서를 찾을 수 없습니다. 다른 질문을 해보시거나 더 구체적으로 질문해주세요.",
+                    "answer": "죄송합니다. 질문과 관련된 문서를 찾을 수 없고, 현재 답변을 생성할 수 없습니다. 시스템 관리자에게 문의해주세요.",
                     "sources": [],
                     "confidence_score": 0.0,
                     "search_time_ms": search_time_ms,
                     "generation_time_ms": 0,
+                    "error": True,
                 }
 
             logger.info(f"검색 완료: {len(search_results)}개 문서 발견")
@@ -225,6 +340,31 @@ class RAGService:
 
             if not gpt_oss_healthy:
                 health_status["status"] = "degraded"
+
+            # 벡터 데이터베이스 상태 확인
+            db_status = await self.vector_search_service.check_database_status()
+            health_status["components"]["vector_database"] = {
+                "status": "ready" if db_status["is_ready"] else "not_ready",
+                "document_count": db_status["document_count"],
+                "embedding_count": db_status["embedding_count"],
+                "has_documents": db_status["has_documents"],
+                "has_embeddings": db_status["has_embeddings"],
+            }
+
+            # DB에 오류가 있으면 전체 상태를 degraded로 설정
+            if "error" in db_status:
+                health_status["components"]["vector_database"]["error"] = db_status[
+                    "error"
+                ]
+                health_status["status"] = "degraded"
+
+            # 임베딩 서비스 상태 확인
+            embedding_info = self.embedding_service.get_model_info()
+            health_status["components"]["embedding_service"] = {
+                "status": "ready" if embedding_info["loaded"] else "loading",
+                "model": embedding_info["model_name"],
+                "dimension": embedding_info["dimension"],
+            }
 
         except Exception as e:
             logger.error(f"상태 확인 중 오류: {str(e)}")

@@ -1,7 +1,7 @@
 """임베딩 서비스 - 텍스트를 벡터로 변환."""
 
 import logging
-from typing import List, Union
+from typing import List
 
 from sentence_transformers import SentenceTransformer
 

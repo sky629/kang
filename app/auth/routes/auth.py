@@ -86,7 +86,10 @@ async def google_callback(
 
 @auth_public_router_v1.post("/refresh/", response_model=TokenResponse)
 @limiter.limit(RATE_LIMITS["auth"])
-async def refresh_token(token_request: RefreshTokenRequest, request: Request):
+async def refresh_token(
+    request: Request,
+    token_request: RefreshTokenRequest,
+):
     """Refresh JWT access token using refresh token."""
     try:
         new_tokens = await oauth_service.refresh_jwt_token(token_request.refresh_token)
@@ -160,8 +163,8 @@ async def get_current_user_info(
 @auth_public_router_v1.put("/self/", response_model=UserResponse)
 @limiter.limit(RATE_LIMITS["user_update"])
 async def update_current_user(
-    update_request: UserUpdateRequest,
     request: Request,
+    update_request: UserUpdateRequest,
     current_user: User = Depends(get_current_user),
 ):
     """Update current user profile information."""
@@ -212,7 +215,8 @@ async def get_user_social_accounts(
     "/self/social-accounts/{account_id}/", response_model=MessageResponse
 )
 async def disconnect_social_account(
-    account_id: str, current_user: User = Depends(get_current_user)
+    account_id: str,
+    current_user: User = Depends(get_current_user),
 ):
     """Disconnect a social account from current user."""
     try:

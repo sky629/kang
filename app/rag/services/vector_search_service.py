@@ -6,7 +6,7 @@ from typing import List, Optional
 from sqlalchemy import text
 
 from app.common.storage.postgres import postgres_storage
-from app.rag.models.postgres_models import DocumentChunk, Embedding
+from app.rag.models.postgres_models import DocumentChunk
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ class VectorSearchService:
                 # pgvector 코사인 유사도 검색 쿼리
                 query = text(
                     """
-                    SELECT 
+                    SELECT
                         dc.id,
                         dc.document_id,
                         dc.chunk_index,
@@ -153,6 +153,41 @@ class VectorSearchService:
         except Exception as e:
             logger.error(f"청크 조회 중 오류: {str(e)}")
             raise Exception(f"문서 청크 조회에 실패했습니다: {str(e)}")
+
+    async def check_database_status(self) -> dict:
+        """데이터베이스 상태를 확인합니다."""
+        try:
+            async with postgres_storage.get_domain_read_session("rag") as session:
+                # 전체 문서 수 확인
+                doc_count_result = await session.execute(
+                    text("SELECT COUNT(*) FROM documents")
+                )
+                document_count = doc_count_result.scalar()
+
+                # 전체 임베딩 수 확인
+                embedding_count_result = await session.execute(
+                    text("SELECT COUNT(*) FROM embeddings")
+                )
+                embedding_count = embedding_count_result.scalar()
+
+                return {
+                    "document_count": document_count,
+                    "embedding_count": embedding_count,
+                    "has_documents": document_count > 0,
+                    "has_embeddings": embedding_count > 0,
+                    "is_ready": document_count > 0 and embedding_count > 0,
+                }
+
+        except Exception as e:
+            logger.error(f"데이터베이스 상태 확인 중 오류: {str(e)}")
+            return {
+                "document_count": 0,
+                "embedding_count": 0,
+                "has_documents": False,
+                "has_embeddings": False,
+                "is_ready": False,
+                "error": str(e),
+            }
 
     def get_search_info(self) -> dict:
         """검색 설정 정보를 반환합니다."""

@@ -351,17 +351,52 @@ POSTGRES_PORT=5432
 # USER_POSTGRES_WRITE_URL=postgresql://...
 ```
 
+## 완료된 기능
+
+### Authentication System ✅
+- [x] Google OAuth 2.0 인증 완료
+- [x] JWT 토큰 기반 인증 (Access/Refresh)
+- [x] 사용자 관리 (프로필 수정, 계정 삭제)
+- [x] Rate Limiting 및 보안 미들웨어
+
+### RAG System ✅ 최근 완료 (2025.01)
+- [x] **벡터 검색 기반 RAG 시스템** - PostgreSQL + pgvector
+- [x] **한국어 최적화 임베딩** - ko-sroberta-multitask 모델
+- [x] **지능적 폴백 메커니즘** - DB 비어있을 때 일반 지식 활용
+- [x] **동적 검색 전략** - 임계값 자동 조정 (0.7 → 0.5 → 0.3)
+- [x] **성능 모니터링** - 검색/생성 시간 추적
+- [x] **신뢰도 평가** - 답변 품질 점수화 (0.0-1.0)
+- [x] **상태 모니터링 API** - 시스템 헬스체크 및 DB 상태
+
+### API 엔드포인트 현황
+```bash
+# RAG 시스템
+GET  /rag/query/          # 벡터 검색 기반 질의응답
+POST /rag/answer/         # 직접 컨텍스트 기반 답변
+GET  /rag/health/         # 시스템 상태 확인
+GET  /rag/database/status/ # DB 상태 및 권장사항
+GET  /rag/sample/         # 사용법 예시
+
+# 인증 시스템  
+GET  /api/v1/auth/google/login/    # Google OAuth 로그인
+POST /api/v1/auth/google/callback/ # OAuth 콜백
+POST /api/v1/auth/refresh/         # 토큰 갱신
+GET  /api/v1/auth/self/            # 사용자 정보
+```
+
 ## 향후 확장 계획
 
-- [x] 추가 소셜 로그인 지원 - Apple OAuth 준비 완료 (데이터베이스 스키마 및 환경설정)
-- [ ] Apple OAuth 서비스 구현
+### 단기 계획
+- [ ] Apple OAuth 서비스 구현 (스키마 준비 완료)
+- [ ] RAG 문서 업로드 API (현재는 외부 구현)
+- [ ] 관리자 대시보드 (RAG 성능 모니터링)
+
+### 중장기 계획  
 - [ ] 추가 소셜 로그인 지원 (Kakao, Naver)
 - [ ] 이메일/패스워드 로그인 옵션
 - [ ] 사용자 권한 관리 시스템 (RBAC)
 - [ ] API 키 기반 인증
-- [ ] 관리자 패널 구현
 - [ ] 자주 조회 되는 데이터에 대한 캐시 처리
-- [ ] RAG 시스템 추가
 
 ## 라이선스
 

@@ -2,7 +2,6 @@
 
 import uuid
 from datetime import datetime
-from typing import List
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import ARRAY, Column, DateTime, ForeignKey, Integer, String, Text

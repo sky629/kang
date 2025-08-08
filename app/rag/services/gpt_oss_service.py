@@ -1,6 +1,5 @@
 """GPT-OSS service for text generation using Ollama."""
 
-import json
 import logging
 from typing import Dict, List, Optional
 
@@ -94,7 +93,7 @@ class GPTOSSService:
 
     def _build_rag_system_prompt(self) -> str:
         """RAG 시스템용 시스템 프롬프트를 생성합니다."""
-        return """당신은 한국어 문서 기반 질의응답 전문가입니다. 
+        return """당신은 한국어 문서 기반 질의응답 전문가입니다.
 주어진 참조 문서들을 바탕으로 정확하고 도움이 되는 답변을 제공해주세요.
 
 지침:
