@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     # CORS
     allowed_origins: str = "http://localhost:3000,http://localhost:8080"
 
+    # LangSmith Configuration
+    langchain_tracing_v2: bool = True
+    langchain_endpoint: str = "https://api.smith.langchain.com"
+    langchain_api_key: str = ""
+    langchain_project: str = "kang-rag-system"
+
     # AI Model Configuration
     # GPT-OSS Configuration (Primary)
     gpt_oss_base_url: str = "http://localhost:11434"

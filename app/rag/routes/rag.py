@@ -9,6 +9,7 @@ from app.rag.representations.response import (
     RAGResponse,
 )
 from app.rag.services import GPTOSSService, RAGService
+from app.rag.services.langchain_rag_service import LangChainRAGService
 
 router = APIRouter(prefix="/rag", tags=["RAG"])
 
@@ -59,7 +60,7 @@ async def process_rag_query(
     payload: RAGQueryParametersRequest,
     rag_service: RAGService = Depends(RAGService),
 ):
-    """Vector DB 기반 RAG 질의 처리."""
+    """Vector DB 기반 RAG 질의 처리 (기존 버전)."""
     try:
         result = await rag_service.process_rag_query(
             question=payload.question,
@@ -75,6 +76,67 @@ async def process_rag_query(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"RAG 처리 실패: {str(e)}")
+
+
+@router.post("/langchain/query/", response_model=RAGQueryResponse)
+async def process_langchain_rag_query(
+    payload: RAGQueryParametersRequest,
+    langchain_rag_service: LangChainRAGService = Depends(LangChainRAGService),
+):
+    """LangChain 기반 RAG 질의 처리 (새 버전)."""
+    try:
+        result = await langchain_rag_service.process_rag_query(
+            question=payload.question,
+            user_id=payload.user_id,
+            max_documents=payload.max_documents,
+            similarity_threshold=payload.similarity_threshold,
+            temperature=payload.temperature,
+        )
+
+        return RAGQueryResponse(**result)
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LangChain RAG 처리 실패: {str(e)}")
+
+
+@router.post("/langchain/answer/", response_model=RAGResponse)
+async def generate_langchain_rag_answer(
+    payload: RAGRequest,
+    langchain_rag_service: LangChainRAGService = Depends(LangChainRAGService),
+):
+    """LangChain 기반 RAG 답변 생성."""
+    try:
+        # LangChain RAG 답변 생성
+        answer = await langchain_rag_service.generate_direct_answer(
+            question=payload.question,
+            context_documents=payload.context_documents,
+            user_id="test_user",
+            temperature=payload.temperature,
+        )
+
+        return RAGResponse(
+            question=payload.question,
+            answer=answer,
+            context_count=len(payload.context_documents),
+            model_info=langchain_rag_service.gpt_oss_service.get_model_info(),
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LangChain 답변 생성 실패: {str(e)}")
+
+
+@router.get("/langchain/health/", response_model=HealthResponse)
+async def check_langchain_rag_health(
+    langchain_rag_service: LangChainRAGService = Depends(LangChainRAGService),
+):
+    """LangChain RAG 시스템 상태 확인."""
+    try:
+        health_status = await langchain_rag_service.check_service_health()
+        return HealthResponse(**health_status)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LangChain 상태 확인 실패: {str(e)}")
 
 
 @router.get("/model/info/")
@@ -148,9 +210,20 @@ async def get_sample_test():
     """샘플 테스트 데이터 반환."""
     return {
         "vector_search_query": {
-            "url": "GET /rag/query/?question=FastAPI의 장점은 무엇인가요?&user_id=test_user",
-            "description": "벡터 DB 검색 기반 RAG 질의 (폴백 메커니즘 포함)",
-            "parameters": {
+            "url": "POST /rag/query/",
+            "description": "벡터 DB 검색 기반 RAG 질의 (기존 버전)",
+            "body": {
+                "question": "FastAPI의 장점은 무엇인가요?",
+                "user_id": "test_user",
+                "max_documents": 5,
+                "similarity_threshold": 0.7,
+                "temperature": 0.1,
+            },
+        },
+        "langchain_vector_search_query": {
+            "url": "POST /rag/langchain/query/",
+            "description": "LangChain 기반 RAG 질의 (새 버전 - RunnableBranch 포함)",
+            "body": {
                 "question": "FastAPI의 장점은 무엇인가요?",
                 "user_id": "test_user",
                 "max_documents": 5,
@@ -160,7 +233,19 @@ async def get_sample_test():
         },
         "direct_answer": {
             "url": "POST /rag/answer/",
-            "description": "컨텍스트가 주어진 상태에서 직접 답변 생성",
+            "description": "컨텍스트가 주어진 상태에서 직접 답변 생성 (기존 버전)",
+            "body": {
+                "question": "FastAPI의 장점은 무엇인가요?",
+                "context_documents": [
+                    "FastAPI는 Python으로 작성된 현대적이고 빠른 웹 프레임워크입니다. 자동 API 문서 생성, 타입 힌트 지원, 높은 성능을 제공합니다.",
+                    "FastAPI는 비동기 처리를 지원하여 높은 동시성을 제공합니다. 또한 Pydantic을 사용한 데이터 검증과 직렬화를 지원합니다.",
+                ],
+                "temperature": 0.1,
+            },
+        },
+        "langchain_direct_answer": {
+            "url": "POST /rag/langchain/answer/",
+            "description": "LangChain 기반 직접 답변 생성 (새 버전)",
             "body": {
                 "question": "FastAPI의 장점은 무엇인가요?",
                 "context_documents": [
@@ -172,6 +257,7 @@ async def get_sample_test():
         },
         "system_status": {
             "health_check": "GET /rag/health/",
+            "langchain_health_check": "GET /rag/langchain/health/",
             "database_status": "GET /rag/database/status/",
             "model_info": "GET /rag/model/info/",
         },
@@ -180,5 +266,9 @@ async def get_sample_test():
             "DB 상태에 따른 적응적 응답",
             "동적 유사도 임계값 조정 (재검색)",
             "상세한 성능 메트릭스 (검색/생성 시간)",
+            "LangChain 기반 체인 구성 (RunnableBranch)",
+            "LangSmith 추적 및 모니터링 지원",
+            "ChatOllama 및 PGVector 통합",
+            "HuggingFaceEmbeddings 임베딩 서비스",
         ],
     }

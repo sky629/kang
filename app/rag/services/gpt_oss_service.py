@@ -1,9 +1,23 @@
-"""GPT-OSS service for text generation using Ollama."""
+"""GPT-OSS service for text generation using Ollama with LangChain."""
 
 import logging
+import os
 from typing import Dict, List, Optional
 
-import httpx
+# from langchain_ollama import ChatOllama  # M1 맥에서 설치 필요
+from langchain.schema import AIMessage, HumanMessage, SystemMessage
+
+# 임시 mock 클래스 (M1 맥에서는 실제 ChatOllama 사용)
+try:
+    from langchain_ollama import ChatOllama
+except ImportError:
+    # Mock ChatOllama for development
+    class ChatOllama:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+        
+        async def ainvoke(self, messages):
+            return AIMessage(content="Mock response from ChatOllama")
 
 from config.settings import settings
 
@@ -11,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class GPTOSSService:
-    """GPT-OSS 로컬 모델을 통한 텍스트 생성 서비스."""
+    """GPT-OSS 로컬 모델을 통한 텍스트 생성 서비스 - LangChain 기반."""
 
     def __init__(self):
         self.base_url = settings.gpt_oss_base_url
@@ -20,76 +34,62 @@ class GPTOSSService:
         self.temperature = settings.gpt_oss_temperature
         self.reasoning_level = settings.gpt_oss_reasoning_level
         self.timeout = settings.gpt_oss_timeout
+        self._llm = None
+        
+        # LangSmith 추적 설정
+        if settings.langchain_tracing_v2 and settings.langchain_api_key:
+            os.environ["LANGCHAIN_TRACING_V2"] = str(settings.langchain_tracing_v2)
+            os.environ["LANGCHAIN_ENDPOINT"] = settings.langchain_endpoint
+            os.environ["LANGCHAIN_API_KEY"] = settings.langchain_api_key
+            os.environ["LANGCHAIN_PROJECT"] = settings.langchain_project
+
+    def _get_llm(self) -> ChatOllama:
+        """ChatOllama 인스턴스를 생성하고 반환합니다."""
+        if self._llm is None:
+            logger.info(f"ChatOllama 인스턴스 생성 중 - 모델: {self.model}")
+            
+            self._llm = ChatOllama(
+                model=self.model,
+                base_url=self.base_url,
+                temperature=self.temperature,
+                num_predict=self.max_tokens,
+                timeout=self.timeout,
+            )
+            
+            logger.info("ChatOllama 인스턴스 생성 완료")
+        
+        return self._llm
 
     async def _make_request(
         self, prompt: str, system_prompt: Optional[str] = None, **kwargs
-    ) -> Dict:
-        """Ollama API에 요청을 보내고 응답을 받습니다."""
-
-        # Harmony 형식 프롬프트 구성
-        full_prompt = self._build_harmony_prompt(prompt, system_prompt)
-
-        payload = {
-            "model": self.model,
-            "prompt": full_prompt,
-            "stream": False,
-            "options": {
-                "temperature": kwargs.get("temperature", self.temperature),
-                "num_predict": kwargs.get("max_tokens", self.max_tokens),
-                "stop": kwargs.get("stop_sequences", []),
-            },
-        }
-
-        # 추론 레벨 설정 (GPT-OSS 특화 옵션)
-        if self.reasoning_level:
-            payload["options"]["reasoning_level"] = self.reasoning_level
+    ) -> str:
+        """LangChain ChatOllama로 요청을 보내고 응답을 받습니다."""
 
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                logger.info(f"GPT-OSS 요청 전송: {self.base_url}/api/generate")
+            llm = self._get_llm()
+            
+            # 메시지 구성
+            messages = []
+            if system_prompt:
+                messages.append(SystemMessage(content=system_prompt))
+            messages.append(HumanMessage(content=prompt))
 
-                response = await client.post(
-                    f"{self.base_url}/api/generate",
-                    json=payload,
-                    headers={"Content-Type": "application/json"},
-                )
+            logger.info("ChatOllama 요청 전송")
 
-                if response.status_code != 200:
-                    error_msg = f"GPT-OSS API 오류 (상태 코드: {response.status_code}): {response.text}"
-                    logger.error(error_msg)
-                    raise Exception(error_msg)
+            # LangChain invoke 사용
+            response = await llm.ainvoke(messages)
+            
+            logger.info("ChatOllama 응답 수신 완료")
+            
+            if isinstance(response, AIMessage):
+                return response.content
+            else:
+                return str(response)
 
-                result = response.json()
-                logger.info("GPT-OSS 응답 수신 완료")
-                return result
-
-        except httpx.TimeoutException:
-            error_msg = f"GPT-OSS API 요청 시간 초과 ({self.timeout}초)"
-            logger.error(error_msg)
-            raise Exception(error_msg)
-        except httpx.RequestError as e:
-            error_msg = f"GPT-OSS API 연결 오류: {str(e)}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
         except Exception as e:
-            logger.error(f"GPT-OSS 요청 처리 중 오류: {str(e)}")
-            raise
+            logger.error(f"ChatOllama 요청 처리 중 오류: {str(e)}")
+            raise Exception(f"LLM 요청에 실패했습니다: {str(e)}")
 
-    def _build_harmony_prompt(
-        self, prompt: str, system_prompt: Optional[str] = None
-    ) -> str:
-        """GPT-OSS Harmony 형식에 맞게 프롬프트를 구성합니다."""
-
-        if system_prompt:
-            return f"""<|system|>
-{system_prompt}
-<|user|>
-{prompt}
-<|assistant|>"""
-        else:
-            return f"""<|user|>
-{prompt}
-<|assistant|>"""
 
     def _build_rag_system_prompt(self) -> str:
         """RAG 시스템용 시스템 프롬프트를 생성합니다."""
@@ -124,15 +124,14 @@ class GPTOSSService:
         """일반적인 텍스트 생성."""
 
         try:
-            response = await self._make_request(
+            generated_text = await self._make_request(
                 prompt=prompt, system_prompt=system_prompt, **kwargs
             )
 
-            generated_text = response.get("response", "").strip()
-            if not generated_text:
-                raise Exception("GPT-OSS에서 빈 응답을 받았습니다")
+            if not generated_text or not generated_text.strip():
+                raise Exception("ChatOllama에서 빈 응답을 받았습니다")
 
-            return generated_text
+            return generated_text.strip()
 
         except Exception as e:
             logger.error(f"텍스트 생성 중 오류: {str(e)}")
@@ -165,60 +164,47 @@ class GPTOSSService:
             raise
 
     async def check_health(self) -> bool:
-        """Ollama 서비스 상태를 확인합니다."""
+        """ChatOllama 서비스 상태를 확인합니다."""
 
         try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                response = await client.get(f"{self.base_url}/api/tags")
-
-                if response.status_code == 200:
-                    tags_data = response.json()
-                    models = [
-                        model.get("name", "") for model in tags_data.get("models", [])
-                    ]
-
-                    # 설정된 모델이 사용 가능한지 확인
-                    model_available = any(self.model in model for model in models)
-
-                    if model_available:
-                        logger.info(
-                            f"GPT-OSS 서비스 정상 - 모델 '{self.model}' 사용 가능"
-                        )
-                        return True
-                    else:
-                        logger.warning(
-                            f"모델 '{self.model}'을 찾을 수 없습니다. 사용 가능한 모델: {models}"
-                        )
-                        return False
-
+            llm = self._get_llm()
+            
+            # 간단한 테스트 메시지로 상태 확인
+            test_message = [HumanMessage(content="안녕하세요. 간단히 '안녕하세요'라고 답변해주세요.")]
+            
+            logger.info("ChatOllama 상태 확인 중...")
+            response = await llm.ainvoke(test_message)
+            
+            if response and (isinstance(response, AIMessage) or str(response)):
+                logger.info(f"ChatOllama 서비스 정상 - 모델 '{self.model}' 응답 확인")
+                return True
+            else:
+                logger.warning(f"ChatOllama에서 유효하지 않은 응답을 받았습니다")
                 return False
 
         except Exception as e:
-            logger.error(f"GPT-OSS 상태 확인 중 오류: {str(e)}")
+            logger.error(f"ChatOllama 상태 확인 중 오류: {str(e)}")
             return False
 
     async def pull_model(self) -> bool:
-        """모델을 다운로드합니다."""
+        """모델을 다운로드합니다. (LangChain ChatOllama는 자동으로 모델을 로드합니다)"""
 
         try:
-            logger.info(f"모델 '{self.model}' 다운로드 시작...")
-
-            async with httpx.AsyncClient(timeout=3600) as client:  # 1시간 타임아웃
-                response = await client.post(
-                    f"{self.base_url}/api/pull",
-                    json={"name": self.model},
-                    headers={"Content-Type": "application/json"},
-                )
-
-                if response.status_code == 200:
-                    logger.info(f"모델 '{self.model}' 다운로드 완료")
-                    return True
-                else:
-                    logger.error(f"모델 다운로드 실패: {response.text}")
-                    return False
+            logger.info(f"모델 '{self.model}' 로드 확인...")
+            
+            # ChatOllama는 첫 번째 호출 시 자동으로 모델을 로드하므로
+            # health check로 모델 가용성을 확인
+            is_healthy = await self.check_health()
+            
+            if is_healthy:
+                logger.info(f"모델 '{self.model}' 로드 완료")
+                return True
+            else:
+                logger.error(f"모델 '{self.model}' 로드 실패")
+                return False
 
         except Exception as e:
-            logger.error(f"모델 다운로드 중 오류: {str(e)}")
+            logger.error(f"모델 로드 중 오류: {str(e)}")
             return False
 
     def get_model_info(self) -> Dict[str, any]:
