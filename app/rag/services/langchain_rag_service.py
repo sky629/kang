@@ -5,11 +5,9 @@ import os
 import time
 from typing import Dict, List, Any, Optional
 
-from langchain.schema import Document
-from langchain.schema.runnable import RunnableBranch, RunnablePassthrough
+from langchain.schema.runnable import RunnableBranch
 from langchain.schema.output_parser import StrOutputParser
-from langchain.prompts import ChatPromptTemplate, PromptTemplate
-from langchain.schema import AIMessage, HumanMessage, SystemMessage
+from langchain.prompts import ChatPromptTemplate
 
 from app.rag.services.embedding_service import EmbeddingService
 from app.rag.services.gpt_oss_service import GPTOSSService

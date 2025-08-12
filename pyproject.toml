@@ -38,6 +38,7 @@ dependencies = [
     "pgvector>=0.2.0",
     "faiss-cpu>=1.7.4",
     "python-magic>=0.4.27",
+    "psycopg[binary]>=3.2.9",
 ]
 
 [dependency-groups]

@@ -11,7 +11,7 @@ from app.rag.representations.response import (
 from app.rag.services import GPTOSSService, RAGService
 from app.rag.services.langchain_rag_service import LangChainRAGService
 
-router = APIRouter(prefix="/rag", tags=["RAG"])
+router = APIRouter(prefix="/api/v1/rag", tags=["RAG"])
 
 
 @router.get(

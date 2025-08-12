@@ -4,30 +4,7 @@ import logging
 import os
 from typing import List, Optional, Dict, Any
 
-# 임시 mock 클래스들 (M1 맥에서는 실제 클래스 사용)
-try:
-    from langchain_postgres import PGVector
-except ImportError:
-    # Mock PGVector for development
-    class PGVector:
-        def __init__(self, **kwargs):
-            self.kwargs = kwargs
-        
-        def similarity_search_with_score(self, query, **kwargs):
-            from langchain.schema import Document
-            # Mock search result
-            doc = Document(
-                page_content="Mock document content",
-                metadata={"document_id": "mock_id", "chunk_index": 0}
-            )
-            return [(doc, 0.2)]  # (document, distance)
-        
-        def add_texts(self, texts, metadatas=None, ids=None):
-            return [f"mock_id_{i}" for i in range(len(texts))]
-        
-        def delete(self, ids):
-            pass
-from sqlalchemy import create_engine
+from langchain_postgres import PGVector
 
 from app.rag.services.embedding_service import EmbeddingService
 from config.settings import settings

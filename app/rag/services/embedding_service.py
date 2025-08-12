@@ -4,20 +4,7 @@ import logging
 import os
 from typing import List
 
-# 임시 mock 클래스들 (M1 맥에서는 실제 클래스 사용)
-try:
-    from langchain_community.embeddings import HuggingFaceEmbeddings
-except ImportError:
-    # Mock HuggingFaceEmbeddings for development
-    class HuggingFaceEmbeddings:
-        def __init__(self, **kwargs):
-            self.kwargs = kwargs
-        
-        def embed_query(self, text):
-            return [0.1] * 768  # Mock 768-dim embedding
-        
-        def embed_documents(self, texts):
-            return [[0.1] * 768] * len(texts)  # Mock embeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 
 from config.settings import settings
 
@@ -47,13 +34,17 @@ class EmbeddingService:
             # HuggingFaceEmbeddings 사용
             model_kwargs = {
                 'device': 'cpu',  # GPU 사용 시 'cuda'로 변경
+            }
+            
+            # encode_kwargs에만 normalize_embeddings 설정
+            encode_kwargs = {
                 'normalize_embeddings': True
             }
             
             self._model = HuggingFaceEmbeddings(
                 model_name=self.model_name,
                 model_kwargs=model_kwargs,
-                encode_kwargs={'normalize_embeddings': True}
+                encode_kwargs=encode_kwargs
             )
             
             logger.info(f"임베딩 모델 로딩 완료: {self.dimension}차원")

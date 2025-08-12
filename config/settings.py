@@ -48,8 +48,8 @@ class Settings(BaseSettings):
 
     # AI Model Configuration
     # GPT-OSS Configuration (Primary)
-    gpt_oss_base_url: str = "http://localhost:11434"
-    gpt_oss_model: str = "llama3.2:3b"
+    gpt_oss_base_url: str = "http://ollama:11434"
+    gpt_oss_model: str = "llama3.2:1b"
     gpt_oss_max_tokens: int = 4096
     gpt_oss_temperature: float = 0.1
     gpt_oss_reasoning_level: str = "medium"
