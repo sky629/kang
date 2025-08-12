@@ -1,7 +1,7 @@
 # Kang Server
 
 ## 개요
-
+RAG 시스템 구축
 FastAPI와 PostgreSQL을 사용한 Google OAuth 기반 인증 시스템입니다. Clean Architecture 패턴을 적용하여 확장 가능하고 유지보수가 쉬운 구조로 설계되었습니다.
 
 **Current Version**: v2025.07.0
